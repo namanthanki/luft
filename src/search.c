@@ -36,7 +36,7 @@ static bool is_repetition(const Position *pos) {
     return false;
 }
 
-static int negamax(Position *pos, int depth, int ply, SearchInfo *info) {
+static int negamax(Position *pos, int depth, int ply, int alpha, int beta, SearchInfo *info) {
     info->nodes++;
     check_time(info);
     if (info->stopped) return 0;
@@ -57,11 +57,20 @@ static int negamax(Position *pos, int depth, int ply, SearchInfo *info) {
     int best_score = -INF;
     for (int i = 0; i < list.count; i++) {
         make_move(pos, list.moves[i]);
-        int score = -negamax(pos, depth - 1, ply + 1, info);
+        int score = -negamax(pos, depth - 1, ply + 1, -beta, -alpha, info);
         unmake_move(pos, list.moves[i]);
+
+        if (info->stopped) return 0;
 
         if (score > best_score) {
             best_score = score;
+            if (score > alpha) {
+                alpha = score;
+            }
+        }
+
+        if (score >= beta) {
+            return best_score;
         }
     }
     return best_score;
@@ -87,10 +96,12 @@ SearchResult iterative_deepening(Position *pos, int max_depth, int64_t time_limi
     for (int depth = 1; depth <= max_depth; depth++) {
         int best_score = -INF;
         Move best_move = result.best_move;
+        int alpha = -INF;
+        int beta = INF;
 
         for (int i = 0; i < root_list.count; i++) {
             make_move(pos, root_list.moves[i]);
-            int score = -negamax(pos, depth - 1, 1, &info);
+            int score = -negamax(pos, depth - 1, 1, -beta, -alpha, &info);
             unmake_move(pos, root_list.moves[i]);
 
             if (info.stopped) break;
@@ -98,6 +109,9 @@ SearchResult iterative_deepening(Position *pos, int max_depth, int64_t time_limi
             if (score > best_score) {
                 best_score = score;
                 best_move = root_list.moves[i];
+                if (score > alpha) {
+                    alpha = score;
+                }
             }
         }
 

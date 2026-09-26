@@ -1,0 +1,21 @@
+# Build objects & binaries
+build/
+bin/
+obj/
+dist/
+*.o
+*.obj
+*.pdb
+*.exe
+luft
+
+# IDE & Editor
+.vscode/
+.vs/
+.idea/
+*.swp
+*~
+
+# Local notes & history
+*.txt
+*.log

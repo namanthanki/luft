@@ -1,0 +1,26 @@
+#ifndef SEARCH_H
+#define SEARCH_H
+
+#include "position.h"
+#include "eval.h"
+#include <stdio.h>
+
+#define MATE_BOUND (MATE_SCORE - 512)
+
+static inline bool is_mate_score(int score) {
+    int s = score < 0 ? -score : score;
+    return s >= MATE_BOUND;
+}
+
+typedef struct {
+    Move best_move;
+    int score;
+    int depth;
+    uint64_t nodes;
+    uint64_t time_ms;
+    uint64_t nps;
+} SearchResult;
+
+SearchResult iterative_deepening(Position *pos, int max_depth, int64_t time_limit_ms, FILE *out);
+
+#endif // SEARCH_H

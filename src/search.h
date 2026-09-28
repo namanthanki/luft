@@ -21,6 +21,14 @@ typedef struct {
     uint64_t nps;
 } SearchResult;
 
+typedef struct {
+    int max_depth;
+    int64_t time_limit_ms;
+    uint64_t soft_nodes;
+    uint64_t hard_nodes;
+} SearchLimits;
+
+SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *out);
 SearchResult iterative_deepening(Position *pos, int max_depth, int64_t time_limit_ms, FILE *out);
 
 #endif // SEARCH_H

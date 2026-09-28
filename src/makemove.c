@@ -40,6 +40,9 @@ void make_move(Position *pos, Move m) {
     pos->history[pos->game_ply].castling = pos->castling;
     pos->history[pos->game_ply].halfmove = pos->halfmove;
     pos->history[pos->game_ply].hash = pos->hash;
+    pos->history[pos->game_ply].mg_score = pos->mg_score;
+    pos->history[pos->game_ply].eg_score = pos->eg_score;
+    pos->history[pos->game_ply].phase = pos->phase;
     pos->game_ply++;
 
     if (pos->ep != SQ_NONE) {
@@ -166,4 +169,7 @@ void unmake_move(Position *pos, Move m) {
     pos->castling = state.castling;
     pos->halfmove = state.halfmove;
     pos->hash = state.hash;
+    pos->mg_score = state.mg_score;
+    pos->eg_score = state.eg_score;
+    pos->phase = state.phase;
 }

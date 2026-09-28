@@ -8,6 +8,8 @@
 typedef struct {
     int64_t start_time;
     int64_t time_limit_ms;
+    uint64_t soft_nodes;
+    uint64_t hard_nodes;
     uint64_t nodes;
     bool stopped;
 } SearchInfo;
@@ -17,6 +19,10 @@ static inline int64_t search_info_elapsed(const SearchInfo *info) {
 }
 
 static inline void check_time(SearchInfo *info) {
+    if (info->hard_nodes > 0 && info->nodes >= info->hard_nodes) {
+        info->stopped = true;
+        return;
+    }
     if (info->time_limit_ms <= 0) return;
     if ((info->nodes & 2047) != 0) return;
     if (search_info_elapsed(info) >= info->time_limit_ms) {
@@ -24,24 +30,12 @@ static inline void check_time(SearchInfo *info) {
     }
 }
 
-static bool is_repetition(const Position *pos) {
-    int ply = pos->game_ply;
-    if (ply < 4 || pos->halfmove < 4) return false;
-    int i = ply - 2;
-    while (1) {
-        if (pos->history[i].hash == pos->hash) return true;
-        if (i < 2 || pos->history[i].halfmove == 0) break;
-        i -= 2;
-    }
-    return false;
-}
-
 static int negamax(Position *pos, int depth, int ply, int alpha, int beta, SearchInfo *info) {
     info->nodes++;
     check_time(info);
     if (info->stopped) return 0;
 
-    if (pos->halfmove >= 100 || is_repetition(pos)) return DRAW_SCORE;
+    if (pos->halfmove >= 100 || position_is_repetition(pos)) return DRAW_SCORE;
     if (depth == 0) return evaluate(pos);
 
     MoveList list;
@@ -76,12 +70,12 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
     return best_score;
 }
 
-SearchResult iterative_deepening(Position *pos, int max_depth, int64_t time_limit_ms, FILE *out) {
-    if (!out) out = stdout;
-
+SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *out) {
     SearchInfo info;
     info.start_time = get_time_ms_signed();
-    info.time_limit_ms = time_limit_ms;
+    info.time_limit_ms = limits->time_limit_ms;
+    info.soft_nodes = limits->soft_nodes;
+    info.hard_nodes = limits->hard_nodes;
     info.nodes = 0;
     info.stopped = false;
 
@@ -93,7 +87,9 @@ SearchResult iterative_deepening(Position *pos, int max_depth, int64_t time_limi
     if (root_list.count == 0) return result;
     result.best_move = root_list.moves[0];
 
-    for (int depth = 1; depth <= max_depth; depth++) {
+    int max_d = limits->max_depth > 0 ? limits->max_depth : 64;
+
+    for (int depth = 1; depth <= max_d; depth++) {
         int best_score = -INF;
         Move best_move = result.best_move;
         int alpha = -INF;
@@ -126,32 +122,45 @@ SearchResult iterative_deepening(Position *pos, int max_depth, int64_t time_limi
         result.time_ms = (uint64_t)elapsed;
         result.nps = result.nodes * 1000 / (uint64_t)elapsed;
 
-        char pv_str[6];
-        move_to_uci(best_move, pv_str);
+        if (out) {
+            char pv_str[6];
+            move_to_uci(best_move, pv_str);
 
-        if (is_mate_score(best_score)) {
-            int abs_s = best_score < 0 ? -best_score : best_score;
-            int mate_in = (MATE_SCORE - abs_s + 1) / 2;
-            const char *sign = (best_score < 0) ? "-" : "";
-            fprintf(out, "info depth %d score mate %s%d nodes %llu nps %llu time %llu pv %s\n",
-                    depth, sign, mate_in,
-                    (unsigned long long)result.nodes,
-                    (unsigned long long)result.nps,
-                    (unsigned long long)result.time_ms,
-                    pv_str);
-        } else {
-            fprintf(out, "info depth %d score cp %d nodes %llu nps %llu time %llu pv %s\n",
-                    depth, best_score,
-                    (unsigned long long)result.nodes,
-                    (unsigned long long)result.nps,
-                    (unsigned long long)result.time_ms,
-                    pv_str);
+            if (is_mate_score(best_score)) {
+                int abs_s = best_score < 0 ? -best_score : best_score;
+                int mate_in = (MATE_SCORE - abs_s + 1) / 2;
+                const char *sign = (best_score < 0) ? "-" : "";
+                fprintf(out, "info depth %d score mate %s%d nodes %llu nps %llu time %llu pv %s\n",
+                        depth, sign, mate_in,
+                        (unsigned long long)result.nodes,
+                        (unsigned long long)result.nps,
+                        (unsigned long long)result.time_ms,
+                        pv_str);
+            } else {
+                fprintf(out, "info depth %d score cp %d nodes %llu nps %llu time %llu pv %s\n",
+                        depth, best_score,
+                        (unsigned long long)result.nodes,
+                        (unsigned long long)result.nps,
+                        (unsigned long long)result.time_ms,
+                        pv_str);
+            }
+            fflush(out);
         }
-        fflush(out);
 
         if (is_mate_score(best_score)) break;
-        if (time_limit_ms > 0 && elapsed >= time_limit_ms / 2) break;
+        if (limits->time_limit_ms > 0 && elapsed >= limits->time_limit_ms / 2) break;
+        if (limits->soft_nodes > 0 && info.nodes >= limits->soft_nodes) break;
     }
 
     return result;
+}
+
+SearchResult iterative_deepening(Position *pos, int max_depth, int64_t time_limit_ms, FILE *out) {
+    SearchLimits limits = {
+        .max_depth = max_depth,
+        .time_limit_ms = time_limit_ms,
+        .soft_nodes = 0,
+        .hard_nodes = 0
+    };
+    return search_position(pos, &limits, out);
 }

@@ -19,3 +19,7 @@ luft
 # Local notes & history
 *.txt
 *.log
+
+# Opening books & data
+books/
+*.epd

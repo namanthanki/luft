@@ -147,3 +147,54 @@ void position_display(const Position *pos) {
     printf("  fullmove: %d\n", pos->fullmove);
     printf("  hash:     %016llx\n\n", (unsigned long long)pos->hash);
 }
+
+void position_to_fen(const Position *pos, char *buf) {
+    char *p = buf;
+    for (int rank = 7; rank >= 0; rank--) {
+        int empty_count = 0;
+        for (int file = 0; file < 8; file++) {
+            Square sq = (Square)(rank * 8 + file);
+            Piece piece = position_piece_on(pos, sq);
+            if (piece == PIECE_NONE) {
+                empty_count++;
+            } else {
+                if (empty_count > 0) {
+                    *p++ = (char)('0' + empty_count);
+                    empty_count = 0;
+                }
+                Color c = position_color_on(pos, sq);
+                *p++ = piece_char(piece, c == WHITE);
+            }
+        }
+        if (empty_count > 0) {
+            *p++ = (char)('0' + empty_count);
+        }
+        if (rank > 0) {
+            *p++ = '/';
+        }
+    }
+
+    *p++ = ' ';
+    *p++ = (pos->side == WHITE) ? 'w' : 'b';
+    *p++ = ' ';
+
+    if (pos->castling == CASTLE_NONE) {
+        *p++ = '-';
+    } else {
+        if (pos->castling & CASTLE_WK) *p++ = 'K';
+        if (pos->castling & CASTLE_WQ) *p++ = 'Q';
+        if (pos->castling & CASTLE_BK) *p++ = 'k';
+        if (pos->castling & CASTLE_BQ) *p++ = 'q';
+    }
+
+    *p++ = ' ';
+    if (pos->ep != SQ_NONE) {
+        *p++ = (char)('a' + sq_file(pos->ep));
+        *p++ = (char)('1' + sq_rank(pos->ep));
+    } else {
+        *p++ = '-';
+    }
+
+    p += sprintf(p, " %d %d", pos->halfmove, pos->fullmove);
+    *p = '\0';
+}

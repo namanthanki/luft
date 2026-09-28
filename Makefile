@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS ?= -std=c11 -O3 -Wall -Wextra -pedantic -Wno-unused-function -flto
-LDFLAGS ?= -flto 
+LDFLAGS ?= -flto -lm
 
 SRCS = src/main.c \
        src/bitboard.c \
@@ -12,7 +12,9 @@ SRCS = src/main.c \
        src/perft.c \
        src/eval.c \
        src/search.c \
-       src/uci.c
+       src/uci.c \
+       src/datagen.c \
+       src/tuner.c
 
 OBJS = $(SRCS:.c=.o)
 TARGET = luft.exe

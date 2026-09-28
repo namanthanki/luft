@@ -2,6 +2,7 @@
 #include "eval.h"
 #include "movegen.h"
 #include "makemove.h"
+#include "moveorder.h"
 #include "time_utils.h"
 
 
@@ -48,11 +49,17 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
         return DRAW_SCORE;
     }
 
+    int scores[MAX_MOVES];
+    score_moves(&list, scores);
+
     int best_score = -INF;
     for (int i = 0; i < list.count; i++) {
-        make_move(pos, list.moves[i]);
+        pick_next_move(&list, scores, i);
+        Move m = list.moves[i];
+
+        make_move(pos, m);
         int score = -negamax(pos, depth - 1, ply + 1, -beta, -alpha, info);
-        unmake_move(pos, list.moves[i]);
+        unmake_move(pos, m);
 
         if (info->stopped) return 0;
 
@@ -85,26 +92,29 @@ SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *ou
     MoveList root_list;
     generate_moves(pos, &root_list);
     if (root_list.count == 0) return result;
-    result.best_move = root_list.moves[0];
-
     int max_d = limits->max_depth > 0 ? limits->max_depth : 64;
 
     for (int depth = 1; depth <= max_d; depth++) {
+        int root_scores[MAX_MOVES];
+        score_moves(&root_list, root_scores);
         int best_score = -INF;
         Move best_move = result.best_move;
         int alpha = -INF;
         int beta = INF;
 
         for (int i = 0; i < root_list.count; i++) {
-            make_move(pos, root_list.moves[i]);
+            pick_next_move(&root_list, root_scores, i);
+            Move m = root_list.moves[i];
+
+            make_move(pos, m);
             int score = -negamax(pos, depth - 1, 1, -beta, -alpha, &info);
-            unmake_move(pos, root_list.moves[i]);
+            unmake_move(pos, m);
 
             if (info.stopped) break;
 
             if (score > best_score) {
                 best_score = score;
-                best_move = root_list.moves[i];
+                best_move = m;
                 if (score > alpha) {
                     alpha = score;
                 }

@@ -41,4 +41,13 @@ static const uint64_t ROOK_MAGICS[64] = {
     0x0805000204180011ULL, 0x1401000802040001ULL, 0x0808081002408914ULL, 0x1098118401082042ULL,
 };
 
+static const int MVV_LVA[6][6] = {
+    { 15, 14, 13, 12, 11, 10 }, // Pawn victim:   P, N, B, R, Q, K attacker
+    { 25, 24, 23, 22, 21, 20 }, // Knight victim
+    { 35, 34, 33, 32, 31, 30 }, // Bishop victim
+    { 45, 44, 43, 42, 41, 40 }, // Rook victim
+    { 55, 54, 53, 52, 51, 50 }, // Queen victim
+    {  0,  0,  0,  0,  0,  0 }, // King victim
+};
+
 #endif // DATA_H

@@ -28,13 +28,73 @@ static inline void check_time(SearchInfo *info) {
     }
 }
 
+static int qsearch(Position *pos, int ply, int alpha, int beta, SearchInfo *info) {
+    info->nodes++;
+    check_time(info);
+    if (info->stopped) return 0;
+
+    if (pos->halfmove >= 100 || position_is_repetition(pos)) return DRAW_SCORE;
+
+    bool in_check = is_in_check(pos, pos->side);
+    if (ply >= MAX_SEARCH_PLY - 1 || pos->game_ply >= MAX_GAME_PLY - 1) {
+        return in_check ? 0 : evaluate(pos);
+    }
+
+    int best_score = -INF;
+
+    if (!in_check) {
+        int stand_pat = evaluate(pos);
+        if (stand_pat >= beta) return stand_pat;
+        if (stand_pat > alpha) {
+            alpha = stand_pat;
+        }
+        best_score = stand_pat;
+    }
+
+    MoveList list;
+    if (in_check) {
+        MoveGenMasks masks = generate_moves(pos, &list);
+        (void)masks;
+        if (list.count == 0) {
+            return -(MATE_SCORE - ply);
+        }
+    } else {
+        generate_captures(pos, &list);
+    }
+
+    for (int i = 0; i < list.count; i++) {
+        Move m = list.moves[i];
+
+        make_move(pos, m);
+        int score = -qsearch(pos, ply + 1, -beta, -alpha, info);
+        unmake_move(pos, m);
+
+        if (info->stopped) return 0;
+
+        if (score > best_score) {
+            best_score = score;
+        }
+
+        if (score >= beta) {
+            return best_score;
+        }
+
+        if (score > alpha) {
+            alpha = score;
+        }
+    }
+
+    return best_score;
+}
+
 static int negamax(Position *pos, int depth, int ply, int alpha, int beta, SearchInfo *info) {
     info->nodes++;
     check_time(info);
     if (info->stopped) return 0;
 
     if (pos->halfmove >= 100 || position_is_repetition(pos)) return DRAW_SCORE;
-    if (depth == 0) return evaluate(pos);
+    if (ply >= MAX_SEARCH_PLY - 1 || pos->game_ply >= MAX_GAME_PLY - 1) return evaluate(pos);
+    if (depth <= 0) return qsearch(pos, ply, alpha, beta, info);
 
     MoveList list;
     MoveGenMasks masks = generate_moves(pos, &list);

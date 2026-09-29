@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 #define MATE_BOUND (MATE_SCORE - 512)
-#define MAX_SEARCH_PLY 64
+#define MAX_SEARCH_PLY 128
 
 static inline bool is_mate_score(int score) {
     int s = score < 0 ? -score : score;

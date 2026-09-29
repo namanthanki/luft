@@ -6,6 +6,12 @@
 #include "time_utils.h"
 
 
+static _Thread_local HistoryTable g_history;
+
+void search_clear_history(void) {
+    history_clear(&g_history);
+}
+
 static inline int64_t search_info_elapsed(const SearchInfo *info) {
     return get_time_ms_signed() - info->start_time;
 }
@@ -41,7 +47,7 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
     }
 
     int scores[MAX_MOVES];
-    score_moves(&list, scores, ply, info);
+    score_moves(&list, scores, pos->side, ply, info);
 
     int best_score = -INF;
     for (int i = 0; i < list.count; i++) {
@@ -62,10 +68,16 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
         }
 
         if (score >= beta) {
-            if (!move_is_capture(m) && ply < MAX_SEARCH_PLY) {
-                if (m != info->killers[0][ply]) {
-                    info->killers[1][ply] = info->killers[0][ply];
-                    info->killers[0][ply] = m;
+            if (move_is_quiet(m)) {
+                if (ply < MAX_SEARCH_PLY) {
+                    if (m != info->killers[0][ply]) {
+                        info->killers[1][ply] = info->killers[0][ply];
+                        info->killers[0][ply] = m;
+                    }
+                }
+                if (info->history) {
+                    int bonus = history_bonus(depth);
+                    history_update(info->history, pos->side, move_from(m), move_to(m), bonus);
                 }
             }
             return best_score;
@@ -83,6 +95,7 @@ SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *ou
     info.nodes = 0;
     info.stopped = false;
     memset(info.killers, 0, sizeof(info.killers));
+    info.history = &g_history;
 
     SearchResult result;
     memset(&result, 0, sizeof(result));
@@ -90,11 +103,18 @@ SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *ou
     MoveList root_list;
     generate_moves(pos, &root_list);
     if (root_list.count == 0) return result;
+    result.best_move = root_list.moves[0];
     int max_d = limits->max_depth > 0 ? limits->max_depth : 64;
 
     for (int depth = 1; depth <= max_d; depth++) {
         int root_scores[MAX_MOVES];
-        score_moves(&root_list, root_scores, 0, &info);
+        for (int i = 0; i < root_list.count; i++) {
+            if (root_list.moves[i] == result.best_move && depth > 1) {
+                root_scores[i] = 100000;
+            } else {
+                root_scores[i] = score_move(root_list.moves[i], pos->side, 0, &info);
+            }
+        }
         int best_score = -INF;
         Move best_move = result.best_move;
         int alpha = -INF;

@@ -182,6 +182,7 @@ void uci_run(void) {
             fflush(stdout);
         } else if (strcmp(line, "ucinewgame") == 0) {
             position_set_fen(&pos, START_FEN);
+            search_clear_history();
         } else if (strncmp(line, "position", 8) == 0) {
             handle_position(&pos, line);
         } else if (strncmp(line, "go", 2) == 0) {

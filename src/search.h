@@ -3,6 +3,7 @@
 
 #include "position.h"
 #include "eval.h"
+#include "history.h"
 #include <stdio.h>
 
 #define MATE_BOUND (MATE_SCORE - 512)
@@ -37,9 +38,11 @@ typedef struct {
     uint64_t nodes;
     bool stopped;
     Move killers[2][MAX_SEARCH_PLY];
+    HistoryTable *history;
 } SearchInfo;
 
 SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *out);
 SearchResult iterative_deepening(Position *pos, int max_depth, int64_t time_limit_ms, FILE *out);
+void search_clear_history(void);
 
 #endif // SEARCH_H

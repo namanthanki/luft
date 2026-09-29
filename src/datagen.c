@@ -251,6 +251,7 @@ static void *worker_routine(void *arg)
 
         Position pos;
         generate_opening(&pos, &rng);
+        search_clear_history();
 
         int recorded_count = 0;
         double result = 0.5;

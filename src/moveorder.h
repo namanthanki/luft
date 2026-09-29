@@ -4,8 +4,9 @@
 #include "types.h"
 #include "eval.h"
 #include "data.h"
+#include "search.h"
 
-static inline int score_move(Move m) {
+static inline int score_move(Move m, int ply, const SearchInfo *info) {
     if (move_is_promo(m)) {
         Piece promo = move_promo(m);
         int val = (promo < 6) ? PIECE_VALUES_MG[promo] : 0;
@@ -16,12 +17,16 @@ static inline int score_move(Move m) {
         int attacker = (int)move_piece(m);
         return 10000 + MVV_LVA[victim][attacker];
     }
+    if (info && ply < MAX_SEARCH_PLY) {
+        if (m == info->killers[0][ply]) return 9000;
+        if (m == info->killers[1][ply]) return 8000;
+    }
     return 0;
 }
 
-static inline void score_moves(const MoveList *list, int scores[MAX_MOVES]) {
+static inline void score_moves(const MoveList *list, int scores[MAX_MOVES], int ply, const SearchInfo *info) {
     for (int i = 0; i < list->count; i++) {
-        scores[i] = score_move(list->moves[i]);
+        scores[i] = score_move(list->moves[i], ply, info);
     }
 }
 

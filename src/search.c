@@ -6,15 +6,6 @@
 #include "time_utils.h"
 
 
-typedef struct {
-    int64_t start_time;
-    int64_t time_limit_ms;
-    uint64_t soft_nodes;
-    uint64_t hard_nodes;
-    uint64_t nodes;
-    bool stopped;
-} SearchInfo;
-
 static inline int64_t search_info_elapsed(const SearchInfo *info) {
     return get_time_ms_signed() - info->start_time;
 }
@@ -50,7 +41,7 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
     }
 
     int scores[MAX_MOVES];
-    score_moves(&list, scores);
+    score_moves(&list, scores, ply, info);
 
     int best_score = -INF;
     for (int i = 0; i < list.count; i++) {
@@ -71,6 +62,12 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
         }
 
         if (score >= beta) {
+            if (!move_is_capture(m) && ply < MAX_SEARCH_PLY) {
+                if (m != info->killers[0][ply]) {
+                    info->killers[1][ply] = info->killers[0][ply];
+                    info->killers[0][ply] = m;
+                }
+            }
             return best_score;
         }
     }
@@ -85,6 +82,7 @@ SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *ou
     info.hard_nodes = limits->hard_nodes;
     info.nodes = 0;
     info.stopped = false;
+    memset(info.killers, 0, sizeof(info.killers));
 
     SearchResult result;
     memset(&result, 0, sizeof(result));
@@ -96,7 +94,7 @@ SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *ou
 
     for (int depth = 1; depth <= max_d; depth++) {
         int root_scores[MAX_MOVES];
-        score_moves(&root_list, root_scores);
+        score_moves(&root_list, root_scores, 0, &info);
         int best_score = -INF;
         Move best_move = result.best_move;
         int alpha = -INF;

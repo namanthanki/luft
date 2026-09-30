@@ -5,6 +5,7 @@
 #include "search.h"
 #include "perft.h"
 #include "eval.h"
+#include "tt.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -158,6 +159,24 @@ static void handle_go(Position *pos, const char *line) {
     fflush(stdout);
 }
 
+static void handle_setoption(char *line) {
+    char *name_token = strstr(line, "name");
+    char *val_token = strstr(line, "value");
+    if (!name_token || !val_token) return;
+
+    name_token += 4;
+    while (*name_token == ' ') name_token++;
+
+    if (strncmp(name_token, "Hash", 4) == 0 || strncmp(name_token, "hash", 4) == 0) {
+        val_token += 5;
+        while (*val_token == ' ') val_token++;
+        int mb = atoi(val_token);
+        if (mb >= 1 && mb <= 2048) {
+            tt_resize(&g_tt, (size_t)mb);
+        }
+    }
+}
+
 void uci_run(void) {
     Position pos;
     position_set_fen(&pos, START_FEN);
@@ -174,6 +193,7 @@ void uci_run(void) {
         if (strcmp(line, "uci") == 0) {
             printf("id name %s\n", ENGINE_NAME);
             printf("id author %s\n", ENGINE_AUTHOR);
+            printf("option name Hash type spin default 16 min 1 max 2048\n");
             printf("option name Threads type spin default 1 min 1 max 1\n");
             printf("uciok\n");
             fflush(stdout);
@@ -183,6 +203,9 @@ void uci_run(void) {
         } else if (strcmp(line, "ucinewgame") == 0) {
             position_set_fen(&pos, START_FEN);
             search_clear_history();
+            tt_clear(&g_tt);
+        } else if (strncmp(line, "setoption", 9) == 0) {
+            handle_setoption(line);
         } else if (strncmp(line, "position", 8) == 0) {
             handle_position(&pos, line);
         } else if (strncmp(line, "go", 2) == 0) {

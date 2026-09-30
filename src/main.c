@@ -1,5 +1,6 @@
 #include "attacks.h"
 #include "zobrist.h"
+#include "tt.h"
 #include "uci.h"
 #include "datagen.h"
 #include "tuner.h"
@@ -11,6 +12,7 @@
 int main(int argc, char *argv[]) {
     attacks_init();
     zobrist_init();
+    tt_init(&g_tt, 16);
 
     if (argc > 1) {
         if (strcmp(argv[1], "datagen") == 0) {

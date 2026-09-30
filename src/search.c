@@ -4,6 +4,7 @@
 #include "makemove.h"
 #include "moveorder.h"
 #include "time_utils.h"
+#include "tt.h"
 
 
 static _Thread_local HistoryTable g_history;
@@ -100,6 +101,18 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
 
     if (pos->halfmove >= 100 || position_is_repetition(pos)) return DRAW_SCORE;
     if (ply >= MAX_SEARCH_PLY - 1 || pos->game_ply >= MAX_GAME_PLY - 1) return evaluate(pos);
+
+    TTEntry *entry = tt_probe(&g_tt, pos->hash);
+    if (entry) {
+        int tt_score = score_from_tt(entry->score, ply);
+        if (entry->depth >= depth && ply > 0) {
+            uint8_t flag = tt_entry_flag(entry);
+            if (flag == TT_EXACT) return tt_score;
+            if (flag == TT_LOWERBOUND && tt_score >= beta) return tt_score;
+            if (flag == TT_UPPERBOUND && tt_score <= alpha) return tt_score;
+        }
+    }
+
     if (depth <= 0) return qsearch(pos, ply, alpha, beta, info);
 
     MoveList list;
@@ -115,22 +128,23 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
     int scores[MAX_MOVES];
     score_moves(&list, scores, pos->side, ply, info);
 
+    int mut_alpha = alpha;
     int best_score = -INF;
+    Move best_move = MOVE_NULL;
+
     for (int i = 0; i < list.count; i++) {
         pick_next_move(&list, scores, i);
         Move m = list.moves[i];
 
         make_move(pos, m);
-        int score = -negamax(pos, depth - 1, ply + 1, -beta, -alpha, info);
+        int score = -negamax(pos, depth - 1, ply + 1, -beta, -mut_alpha, info);
         unmake_move(pos, m);
 
         if (info->stopped) return 0;
 
         if (score > best_score) {
             best_score = score;
-            if (score > alpha) {
-                alpha = score;
-            }
+            best_move = m;
         }
 
         if (score >= beta) {
@@ -146,13 +160,24 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
                     history_update(info->history, pos->side, move_from(m), move_to(m), bonus);
                 }
             }
-            return best_score;
+
+            tt_store(&g_tt, pos->hash, depth, ply, score, TT_LOWERBOUND, m);
+            return score;
+        }
+
+        if (score > mut_alpha) {
+            mut_alpha = score;
         }
     }
+
+    TTFlag flag = (best_score > alpha) ? TT_EXACT : TT_UPPERBOUND;
+    tt_store(&g_tt, pos->hash, depth, ply, best_score, flag, best_move);
+
     return best_score;
 }
 
 SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *out) {
+    g_tt.age++;
     SearchInfo info;
     info.start_time = get_time_ms_signed();
     info.time_limit_ms = limits->time_limit_ms;

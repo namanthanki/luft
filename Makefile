@@ -12,6 +12,7 @@ SRCS = src/main.c \
        src/perft.c \
        src/eval.c \
        src/search.c \
+       src/tt.c \
        src/uci.c \
        src/datagen.c \
        src/tuner.c

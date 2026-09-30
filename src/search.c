@@ -61,8 +61,14 @@ static int qsearch(Position *pos, int ply, int alpha, int beta, SearchInfo *info
     } else {
         generate_captures(pos, &list);
     }
+ 
+    if (list.count == 0) return best_score;
+
+    int scores[MAX_MOVES];
+    score_moves(&list, scores, pos->side, ply, info);
 
     for (int i = 0; i < list.count; i++) {
+        pick_next_move(&list, scores, i);
         Move m = list.moves[i];
 
         make_move(pos, m);

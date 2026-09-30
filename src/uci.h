@@ -1,7 +1,7 @@
 #ifndef UCI_H
 #define UCI_H
 
-#define ENGINE_VERSION "0.1.6"
+#define ENGINE_VERSION "0.1.7"
 #define ENGINE_NAME    "luft " ENGINE_VERSION
 #define ENGINE_AUTHOR  "Naman Thanki"
 

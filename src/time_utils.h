@@ -1,5 +1,4 @@
-#ifndef TIME_UTILS_H
-#define TIME_UTILS_H
+#pragma once
 
 #include <stdint.h>
 
@@ -28,5 +27,3 @@ static inline uint64_t get_time_ms(void) {
 static inline int64_t get_time_ms_signed(void) {
     return (int64_t)get_time_ms();
 }
-
-#endif // TIME_UTILS_H

@@ -35,15 +35,15 @@ void make_move(Position *pos, Move m) {
     Color us = pos->side;
     Color them = flip_color(us);
 
-    pos->history[pos->game_ply].captured = captured;
-    pos->history[pos->game_ply].ep = pos->ep;
-    pos->history[pos->game_ply].castling = pos->castling;
-    pos->history[pos->game_ply].halfmove = pos->halfmove;
-    pos->history[pos->game_ply].hash = pos->hash;
-    pos->history[pos->game_ply].mg_score = pos->mg_score;
-    pos->history[pos->game_ply].eg_score = pos->eg_score;
-    pos->history[pos->game_ply].phase = pos->phase;
-    pos->game_ply++;
+    State *undo = &pos->history[pos->game_ply++];
+    undo->captured = captured;
+    undo->ep = pos->ep;
+    undo->castling = pos->castling;
+    undo->halfmove = pos->halfmove;
+    undo->hash = pos->hash;
+    undo->mg_score = pos->mg_score;
+    undo->eg_score = pos->eg_score;
+    undo->phase = pos->phase;
 
     if (pos->ep != SQ_NONE) {
         pos->hash ^= zobrist_ep_keys[sq_file(pos->ep)];

@@ -1,5 +1,4 @@
-#ifndef PERFT_H
-#define PERFT_H
+#pragma once
 
 #include "position.h"
 #include <stdio.h>
@@ -15,5 +14,3 @@ typedef struct {
 uint64_t perft_node(Position *pos, int depth, PerftStats *stats);
 void perft_divide(Position *pos, int depth);
 void perft_run_suite(FILE *out);
-
-#endif // PERFT_H

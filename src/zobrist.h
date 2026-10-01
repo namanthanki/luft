@@ -1,5 +1,4 @@
-#ifndef ZOBRIST_H
-#define ZOBRIST_H
+#pragma once
 
 #include <stdint.h>
 
@@ -9,5 +8,3 @@ extern uint64_t zobrist_castling_keys[16];
 extern uint64_t zobrist_ep_keys[8];
 
 void zobrist_init(void);
-
-#endif // ZOBRIST_H

@@ -1,13 +1,15 @@
-#ifndef POSITION_H
-#define POSITION_H
+#pragma once
 
 #include "types.h"
 #include "bitboard.h"
 #include "zobrist.h"
 #include "eval.h"
 
-#define MAX_GAME_PLY 2048
-#define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+enum {
+    MAX_GAME_PLY = 2048
+};
+
+static const char START_FEN[] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 typedef struct {
     Piece captured;
@@ -94,5 +96,3 @@ static inline void position_remove_piece(Position *pos, Color color, Piece piece
     pos->eg_score -= (int16_t)(sign * PIECE_VALUES_EG[p]);
     pos->phase -= (uint8_t)PIECE_PHASE[p];
 }
-
-#endif // POSITION_H

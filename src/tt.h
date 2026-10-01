@@ -1,13 +1,11 @@
-#ifndef TT_H
-#define TT_H
+#pragma once
 
 #include "types.h"
+#include "search_constants.h"
+#include "util.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-
-#define MATE_SCORE 32000
-#define MATE_BOUND (MATE_SCORE - 512)
 
 typedef enum {
     TT_NONE       = 0,
@@ -101,9 +99,7 @@ static inline void tt_store(
             entry->best_move = best_move;
         }
         entry->score = (int16_t)score_to_tt(score, ply);
-        entry->depth = (uint8_t)(depth > 255 ? 255 : (depth < 0 ? 0 : depth));
+        entry->depth = (uint8_t)clamp_int(depth, 0, 255);
         entry->flag_age = tt_make_flag_age((uint8_t)flag, tt->age);
     }
 }
-
-#endif // TT_H

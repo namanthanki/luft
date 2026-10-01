@@ -1,17 +1,17 @@
 #include "movegen.h"
 #include <string.h>
 
-#define FULL_BOARD (~0ULL)
+static const Bitboard FULL_BOARD = ~0ULL;
 
-#define CASTLE_WK_EMPTY (bb_bit(SQ_F1) | bb_bit(SQ_G1))
-#define CASTLE_WQ_EMPTY (bb_bit(SQ_B1) | bb_bit(SQ_C1) | bb_bit(SQ_D1))
-#define CASTLE_BK_EMPTY (bb_bit(SQ_F8) | bb_bit(SQ_G8))
-#define CASTLE_BQ_EMPTY (bb_bit(SQ_B8) | bb_bit(SQ_C8) | bb_bit(SQ_D8))
+static const Bitboard CASTLE_WK_EMPTY = (1ULL << SQ_F1) | (1ULL << SQ_G1);
+static const Bitboard CASTLE_WQ_EMPTY = (1ULL << SQ_B1) | (1ULL << SQ_C1) | (1ULL << SQ_D1);
+static const Bitboard CASTLE_BK_EMPTY = (1ULL << SQ_F8) | (1ULL << SQ_G8);
+static const Bitboard CASTLE_BQ_EMPTY = (1ULL << SQ_B8) | (1ULL << SQ_C8) | (1ULL << SQ_D8);
 
-#define CASTLE_WK_SAFE  (bb_bit(SQ_E1) | bb_bit(SQ_F1) | bb_bit(SQ_G1))
-#define CASTLE_WQ_SAFE  (bb_bit(SQ_C1) | bb_bit(SQ_D1) | bb_bit(SQ_E1))
-#define CASTLE_BK_SAFE  (bb_bit(SQ_E8) | bb_bit(SQ_F8) | bb_bit(SQ_G8))
-#define CASTLE_BQ_SAFE  (bb_bit(SQ_C8) | bb_bit(SQ_D8) | bb_bit(SQ_E8))
+static const Bitboard CASTLE_WK_SAFE  = (1ULL << SQ_E1) | (1ULL << SQ_F1) | (1ULL << SQ_G1);
+static const Bitboard CASTLE_WQ_SAFE  = (1ULL << SQ_C1) | (1ULL << SQ_D1) | (1ULL << SQ_E1);
+static const Bitboard CASTLE_BK_SAFE  = (1ULL << SQ_E8) | (1ULL << SQ_F8) | (1ULL << SQ_G8);
+static const Bitboard CASTLE_BQ_SAFE  = (1ULL << SQ_C8) | (1ULL << SQ_D8) | (1ULL << SQ_E8);
 
 bool is_in_check(const Position *pos, Color side) {
     Bitboard king_bb = pos->pieces[side][KING];

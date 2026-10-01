@@ -5,7 +5,11 @@
 #include "moveorder.h"
 #include "time_utils.h"
 #include "tt.h"
-
+#include "search_constants.h"
+#include "util.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 static _Thread_local HistoryTable g_history;
 
@@ -23,10 +27,44 @@ static inline void check_time(SearchInfo *info) {
         return;
     }
     if (info->time_limit_ms <= 0) return;
-    if ((info->nodes & 2047) != 0) return;
+    if ((info->nodes & TIME_CHECK_MASK) != 0) return;
     if (search_info_elapsed(info) >= info->time_limit_ms) {
         info->stopped = true;
     }
+}
+
+static inline void update_quiet_heuristics(SearchInfo *info, const Position *pos, Move m, int depth, int ply) {
+    if (!move_is_quiet(m)) return;
+    if (ply < MAX_SEARCH_PLY && m != info->killers[0][ply]) {
+        info->killers[1][ply] = info->killers[0][ply];
+        info->killers[0][ply] = m;
+    }
+    if (info->history) {
+        history_update(info->history, pos->side, move_from(m), move_to(m), history_bonus(depth));
+    }
+}
+
+static void print_search_info(FILE *out, int depth, int score, const SearchResult *result) {
+    if (!out) return;
+
+    char pv_str[6];
+    move_to_uci(result->best_move, pv_str);
+
+    char score_str[32];
+    if (is_mate_score(score)) {
+        int mate_in = (MATE_SCORE - abs(score) + 1) / 2;
+        snprintf(score_str, sizeof(score_str), "mate %s%d", (score < 0) ? "-" : "", mate_in);
+    } else {
+        snprintf(score_str, sizeof(score_str), "cp %d", score);
+    }
+
+    fprintf(out, "info depth %d score %s nodes %llu nps %llu time %llu pv %s\n",
+            depth, score_str,
+            (unsigned long long)result->nodes,
+            (unsigned long long)result->nps,
+            (unsigned long long)result->time_ms,
+            pv_str);
+    fflush(out);
 }
 
 static int qsearch(Position *pos, int ply, int alpha, int beta, SearchInfo *info) {
@@ -34,7 +72,7 @@ static int qsearch(Position *pos, int ply, int alpha, int beta, SearchInfo *info
     check_time(info);
     if (info->stopped) return 0;
 
-    if (pos->halfmove >= 100 || position_is_repetition(pos)) return DRAW_SCORE;
+    if (pos->halfmove >= FIFTY_MOVE_LIMIT || position_is_repetition(pos)) return DRAW_SCORE;
 
     bool in_check = is_in_check(pos, pos->side);
     if (ply >= MAX_SEARCH_PLY - 1 || pos->game_ply >= MAX_GAME_PLY - 1) {
@@ -46,16 +84,13 @@ static int qsearch(Position *pos, int ply, int alpha, int beta, SearchInfo *info
     if (!in_check) {
         int stand_pat = evaluate(pos);
         if (stand_pat >= beta) return stand_pat;
-        if (stand_pat > alpha) {
-            alpha = stand_pat;
-        }
+        if (stand_pat > alpha) alpha = stand_pat;
         best_score = stand_pat;
     }
 
     MoveList list;
     if (in_check) {
-        MoveGenMasks masks = generate_moves(pos, &list);
-        (void)masks;
+        generate_moves(pos, &list);
         if (list.count == 0) {
             return -(MATE_SCORE - ply);
         }
@@ -80,14 +115,8 @@ static int qsearch(Position *pos, int ply, int alpha, int beta, SearchInfo *info
 
         if (score > best_score) {
             best_score = score;
-        }
-
-        if (score >= beta) {
-            return best_score;
-        }
-
-        if (score > alpha) {
-            alpha = score;
+            if (score >= beta) return score;
+            if (score > alpha) alpha = score;
         }
     }
 
@@ -99,7 +128,7 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, bool 
     check_time(info);
     if (info->stopped) return 0;
 
-    if (pos->halfmove >= 100 || position_is_repetition(pos)) return DRAW_SCORE;
+    if (pos->halfmove >= FIFTY_MOVE_LIMIT || position_is_repetition(pos)) return DRAW_SCORE;
     if (ply >= MAX_SEARCH_PLY - 1 || pos->game_ply >= MAX_GAME_PLY - 1) return evaluate(pos);
 
     Move tt_move = MOVE_NULL;
@@ -130,14 +159,10 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, bool 
     int scores[MAX_MOVES];
     for (int i = 0; i < list.count; i++) {
         Move m = list.moves[i];
-        if (m == tt_move) {
-            scores[i] = 200000;
-        } else {
-            scores[i] = score_move(m, pos->side, ply, info);
-        }
+        scores[i] = (m == tt_move) ? SCORE_TT_MOVE : score_move(m, pos->side, ply, info);
     }
 
-    int mut_alpha = alpha;
+    const int orig_alpha = alpha;
     int best_score = -INF;
     Move best_move = MOVE_NULL;
 
@@ -147,7 +172,7 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, bool 
 
         bool child_is_pv = is_pv && (i == 0);
         make_move(pos, m);
-        int score = -negamax(pos, depth - 1, ply + 1, -beta, -mut_alpha, child_is_pv, info);
+        int score = -negamax(pos, depth - 1, ply + 1, -beta, -alpha, child_is_pv, info);
         unmake_move(pos, m);
 
         if (info->stopped) return 0;
@@ -157,30 +182,18 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, bool 
         }
 
         if (score >= beta) {
-            if (move_is_quiet(m)) {
-                if (ply < MAX_SEARCH_PLY) {
-                    if (m != info->killers[0][ply]) {
-                        info->killers[1][ply] = info->killers[0][ply];
-                        info->killers[0][ply] = m;
-                    }
-                }
-                if (info->history) {
-                    int bonus = history_bonus(depth);
-                    history_update(info->history, pos->side, move_from(m), move_to(m), bonus);
-                }
-            }
-
+            update_quiet_heuristics(info, pos, m, depth, ply);
             tt_store(&g_tt, pos->hash, depth, ply, score, TT_LOWERBOUND, m);
             return score;
         }
 
-        if (score > mut_alpha) {
-            mut_alpha = score;
+        if (score > alpha) {
+            alpha = score;
             best_move = m;
         }
     }
 
-    TTFlag flag = (best_score > alpha) ? TT_EXACT : TT_UPPERBOUND;
+    TTFlag flag = (best_score > orig_alpha) ? TT_EXACT : TT_UPPERBOUND;
     tt_store(&g_tt, pos->hash, depth, ply, best_score, flag, best_move);
 
     return best_score;
@@ -205,22 +218,19 @@ SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *ou
     generate_moves(pos, &root_list);
     if (root_list.count == 0) return result;
     result.best_move = root_list.moves[0];
-    int max_d = limits->max_depth > 0 ? limits->max_depth : 64;
+    int max_d = limits->max_depth > 0 ? limits->max_depth : DEFAULT_MAX_DEPTH;
 
     for (int depth = 1; depth <= max_d; depth++) {
-        Move root_tt_move = MOVE_NULL;
         TTEntry *entry = tt_probe(&g_tt, pos->hash);
-        if (entry) {
-            root_tt_move = entry->best_move;
-        }
+        Move root_tt_move = entry ? entry->best_move : MOVE_NULL;
 
         int root_scores[MAX_MOVES];
         for (int i = 0; i < root_list.count; i++) {
             Move m = root_list.moves[i];
             if (m == result.best_move && depth > 1) {
-                root_scores[i] = 300000;
+                root_scores[i] = SCORE_ROOT_PV;
             } else if (m == root_tt_move) {
-                root_scores[i] = 200000;
+                root_scores[i] = SCORE_TT_MOVE;
             } else {
                 root_scores[i] = score_move(m, pos->side, 0, &info);
             }
@@ -244,9 +254,7 @@ SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *ou
             if (score > best_score) {
                 best_score = score;
                 best_move = m;
-                if (score > alpha) {
-                    alpha = score;
-                }
+                alpha = score;
             }
         }
 
@@ -256,35 +264,11 @@ SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *ou
         result.score = best_score;
         result.depth = depth;
         result.nodes = info.nodes;
-        int64_t elapsed = search_info_elapsed(&info);
-        if (elapsed < 1) elapsed = 1;
+        int64_t elapsed = max_i64(search_info_elapsed(&info), 1);
         result.time_ms = (uint64_t)elapsed;
         result.nps = result.nodes * 1000 / (uint64_t)elapsed;
 
-        if (out) {
-            char pv_str[6];
-            move_to_uci(best_move, pv_str);
-
-            if (is_mate_score(best_score)) {
-                int abs_s = best_score < 0 ? -best_score : best_score;
-                int mate_in = (MATE_SCORE - abs_s + 1) / 2;
-                const char *sign = (best_score < 0) ? "-" : "";
-                fprintf(out, "info depth %d score mate %s%d nodes %llu nps %llu time %llu pv %s\n",
-                        depth, sign, mate_in,
-                        (unsigned long long)result.nodes,
-                        (unsigned long long)result.nps,
-                        (unsigned long long)result.time_ms,
-                        pv_str);
-            } else {
-                fprintf(out, "info depth %d score cp %d nodes %llu nps %llu time %llu pv %s\n",
-                        depth, best_score,
-                        (unsigned long long)result.nodes,
-                        (unsigned long long)result.nps,
-                        (unsigned long long)result.time_ms,
-                        pv_str);
-            }
-            fflush(out);
-        }
+        print_search_info(out, depth, best_score, &result);
 
         if (is_mate_score(best_score)) break;
         if (limits->time_limit_ms > 0 && elapsed >= limits->time_limit_ms / 2) break;

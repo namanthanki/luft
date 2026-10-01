@@ -4,6 +4,7 @@
 #include "uci.h"
 #include "datagen.h"
 #include "tuner.h"
+#include "search_constants.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +13,7 @@
 int main(int argc, char *argv[]) {
     attacks_init();
     zobrist_init();
-    tt_init(&g_tt, 16);
+    tt_init(&g_tt, DEFAULT_HASH_MB);
 
     if (argc > 1) {
         if (strcmp(argv[1], "datagen") == 0) {
@@ -21,6 +22,7 @@ int main(int argc, char *argv[]) {
             const char *output_file = (argc > 4) ? argv[4] : "data.txt";
             const char *book_file = (argc > 5) ? argv[5] : NULL;
             run_datagen(num_games, num_threads, output_file, book_file);
+            tt_free(&g_tt);
             return 0;
         }
 
@@ -28,6 +30,7 @@ int main(int argc, char *argv[]) {
             const char *data_file = (argc > 2) ? argv[2] : "data.txt";
             int epochs = (argc > 3) ? atoi(argv[3]) : 100;
             run_tuner(data_file, epochs);
+            tt_free(&g_tt);
             return 0;
         }
 
@@ -38,10 +41,12 @@ int main(int argc, char *argv[]) {
             printf("  luft uci                 Run UCI loop\n");
             printf("  luft datagen [games] [threads] [out.txt] [book.epd]   Run self-play datagen\n");
             printf("  luft tune [data.txt] [epochs]                          Run Texel material tuner\n");
+            tt_free(&g_tt);
             return 0;
         }
     }
 
     uci_run();
+    tt_free(&g_tt);
     return 0;
 }

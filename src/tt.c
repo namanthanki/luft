@@ -17,12 +17,12 @@ void tt_resize(TranspositionTable *tt, size_t mb) {
         tt->entries = NULL;
     }
 
-    if (mb == 0) mb = 16;
+    if (mb == 0) mb = DEFAULT_HASH_MB;
     size_t bytes = mb * 1024 * 1024;
     size_t count = bytes / sizeof(TTEntry);
 
-    tt->capacity = count;
-    tt->entries = (TTEntry *)calloc(tt->capacity, sizeof(TTEntry));
+    tt->entries = (TTEntry *)calloc(count, sizeof(TTEntry));
+    tt->capacity = (tt->entries != NULL) ? count : 0;
     tt->age = 0;
 }
 

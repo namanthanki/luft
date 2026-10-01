@@ -1,5 +1,4 @@
-#ifndef TYPES_H
-#define TYPES_H
+#pragma once
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -24,13 +23,12 @@ typedef enum {
     ROOK       = 3,
     QUEEN      = 4,
     KING       = 5,
-    PIECE_NONE = 6
+    PIECE_NONE = 6,
+    NO_PROMO   = 7
 } Piece;
 
-#define NO_PROMO ((Piece)7)
-
-#define PIECE_CHARS       "pnbrqk"
-#define PIECE_CHARS_UPPER "PNBRQK"
+static const char PIECE_CHARS[]       = "pnbrqk";
+static const char PIECE_CHARS_UPPER[] = "PNBRQK";
 
 static inline char piece_char(Piece p, bool upper) {
     assert((int)p < 6);
@@ -79,17 +77,20 @@ typedef enum {
     FLAG_EN_PASSANT  = 4
 } Flag;
 
-#define FROM_SHIFT  0
-#define TO_SHIFT    6
-#define PIECE_SHIFT 12
-#define CAP_SHIFT   16
-#define PROMO_SHIFT 20
-#define FLAG_SHIFT  24
+enum {
+    FROM_SHIFT  = 0,
+    TO_SHIFT    = 6,
+    PIECE_SHIFT = 12,
+    CAP_SHIFT   = 16,
+    PROMO_SHIFT = 20,
+    FLAG_SHIFT  = 24,
 
-#define SQ_MASK     0x3F
-#define NIBBLE_MASK 0x0F
+    SQ_MASK     = 0x3F,
+    NIBBLE_MASK = 0x0F,
 
-#define MOVE_NULL ((Move)0)
+    MOVE_NULL   = 0,
+    MAX_MOVES   = 256
+};
 
 static inline Move move_encode(Square from, Square to, Piece piece, Piece cap, Piece promo, Flag flag) {
     return ((Move)from  << FROM_SHIFT)  |
@@ -159,8 +160,6 @@ static inline void move_to_uci(Move m, char buf[6]) {
     }
 }
 
-#define MAX_MOVES 256
-
 typedef struct {
     Move moves[MAX_MOVES];
     int count;
@@ -174,5 +173,3 @@ static inline void move_list_push(MoveList *list, Move m) {
 static inline void move_list_reset(MoveList *list) {
     list->count = 0;
 }
-
-#endif // TYPES_H

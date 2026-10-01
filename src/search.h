@@ -1,18 +1,10 @@
-#ifndef SEARCH_H
-#define SEARCH_H
+#pragma once
 
 #include "position.h"
 #include "eval.h"
 #include "history.h"
+#include "search_constants.h"
 #include <stdio.h>
-
-#define MATE_BOUND (MATE_SCORE - 512)
-#define MAX_SEARCH_PLY 128
-
-static inline bool is_mate_score(int score) {
-    int s = score < 0 ? -score : score;
-    return s >= MATE_BOUND;
-}
 
 typedef struct {
     Move best_move;
@@ -44,5 +36,3 @@ typedef struct {
 SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *out);
 SearchResult iterative_deepening(Position *pos, int max_depth, int64_t time_limit_ms, FILE *out);
 void search_clear_history(void);
-
-#endif // SEARCH_H

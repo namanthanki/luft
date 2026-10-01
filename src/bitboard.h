@@ -1,5 +1,4 @@
-#ifndef BITBOARD_H
-#define BITBOARD_H
+#pragma once
 
 #include "types.h"
 
@@ -7,15 +6,15 @@
 #include <intrin.h>
 #endif
 
-#define FILE_A 0x0101010101010101ULL
-#define FILE_B 0x0202020202020202ULL
-#define FILE_G 0x4040404040404040ULL
-#define FILE_H 0x8080808080808080ULL
+static const Bitboard FILE_A = 0x0101010101010101ULL;
+static const Bitboard FILE_B = 0x0202020202020202ULL;
+static const Bitboard FILE_G = 0x4040404040404040ULL;
+static const Bitboard FILE_H = 0x8080808080808080ULL;
 
-#define RANK_1 0x00000000000000FFULL
-#define RANK_2 0x000000000000FF00ULL
-#define RANK_7 0x00FF000000000000ULL
-#define RANK_8 0xFF00000000000000ULL
+static const Bitboard RANK_1 = 0x00000000000000FFULL;
+static const Bitboard RANK_2 = 0x000000000000FF00ULL;
+static const Bitboard RANK_7 = 0x00FF000000000000ULL;
+static const Bitboard RANK_8 = 0xFF00000000000000ULL;
 
 static inline uint8_t bb_lsb(Bitboard bb) {
     assert(bb != 0);
@@ -103,5 +102,3 @@ static inline Bitboard bb_south_west_of(Bitboard b) {
 }
 
 void bb_print(Bitboard bb);
-
-#endif // BITBOARD_H

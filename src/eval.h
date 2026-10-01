@@ -1,13 +1,11 @@
-#ifndef EVAL_H
-#define EVAL_H
+#pragma once
 
 #include "types.h"
+#include "search_constants.h"
 
-#define MATE_SCORE 32000
-#define INF        32001
-#define DRAW_SCORE 0
-
-#define TOTAL_PHASE 24
+enum {
+    TOTAL_PHASE = 24
+};
 
 static const int PIECE_VALUES_MG[6] = {
     100,  // PAWN
@@ -38,5 +36,3 @@ static const int PIECE_PHASE[6] = {
 
 struct Position;
 int evaluate(const struct Position *pos);
-
-#endif // EVAL_H

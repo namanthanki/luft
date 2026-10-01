@@ -13,7 +13,7 @@ static inline uint64_t xorshift64(uint64_t s) {
     return x;
 }
 
-#define ZOBRIST_SEED 0xAC7EE7ACCAFEBABEULL
+static const uint64_t ZOBRIST_SEED = 0xAC7EE7ACCAFEBABEULL;
 
 void zobrist_init(void) {
     uint64_t s = ZOBRIST_SEED;

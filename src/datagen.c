@@ -16,21 +16,23 @@
 #include <windows.h>
 typedef HANDLE thread_t;
 typedef CRITICAL_SECTION mutex_t;
-#define mutex_init(m) InitializeCriticalSection(m)
-#define mutex_lock(m) EnterCriticalSection(m)
-#define mutex_unlock(m) LeaveCriticalSection(m)
-#define mutex_destroy(m) DeleteCriticalSection(m)
+static inline void mutex_init(mutex_t *m) { InitializeCriticalSection(m); }
+static inline void mutex_lock(mutex_t *m) { EnterCriticalSection(m); }
+static inline void mutex_unlock(mutex_t *m) { LeaveCriticalSection(m); }
+static inline void mutex_destroy(mutex_t *m) { DeleteCriticalSection(m); }
 #else
 #include <pthread.h>
 typedef pthread_t thread_t;
 typedef pthread_mutex_t mutex_t;
-#define mutex_init(m) pthread_mutex_init(m, NULL)
-#define mutex_lock(m) pthread_mutex_lock(m)
-#define mutex_unlock(m) pthread_mutex_unlock(m)
-#define mutex_destroy(m) pthread_mutex_destroy(m)
+static inline void mutex_init(mutex_t *m) { pthread_mutex_init(m, NULL); }
+static inline void mutex_lock(mutex_t *m) { pthread_mutex_lock(m); }
+static inline void mutex_unlock(mutex_t *m) { pthread_mutex_unlock(m); }
+static inline void mutex_destroy(mutex_t *m) { pthread_mutex_destroy(m); }
 #endif
 
-#define MAX_GAME_PLIES 300
+enum {
+    MAX_GAME_PLIES = 300
+};
 
 static inline uint64_t xorshift64(uint64_t *state) {
     uint64_t x = *state;

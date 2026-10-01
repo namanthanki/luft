@@ -1,5 +1,4 @@
-#ifndef MOVEGEN_H
-#define MOVEGEN_H
+#pragma once
 
 #include "position.h"
 #include "attacks.h"
@@ -27,5 +26,3 @@ bool is_in_check(const Position *pos, Color side);
 MoveGenMasks compute_masks(const Position *pos, Color side);
 MoveGenMasks generate_moves(const Position *pos, MoveList *list);
 void generate_captures(const Position *pos, MoveList *list);
-
-#endif // MOVEGEN_H

@@ -6,6 +6,8 @@
 #include "perft.h"
 #include "eval.h"
 #include "tt.h"
+#include "search_constants.h"
+#include "util.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -127,13 +129,13 @@ static void handle_go(Position *pos, const char *line) {
     bool has_time = (movetime_raw > 0 || wtime_raw > 0 || btime_raw > 0);
     int max_depth;
     if (is_infinite) {
-        max_depth = 64;
-    } else if (depth_raw > 0 && depth_raw <= 64) {
+        max_depth = DEFAULT_MAX_DEPTH;
+    } else if (depth_raw > 0 && depth_raw <= DEFAULT_MAX_DEPTH) {
         max_depth = (int)depth_raw;
     } else if (has_time) {
-        max_depth = 64;
+        max_depth = DEFAULT_MAX_DEPTH;
     } else {
-        max_depth = 5;
+        max_depth = DEFAULT_FIXED_DEPTH;
     }
 
     int64_t time_limit_ms = 0;
@@ -144,8 +146,7 @@ static void handle_go(Position *pos, const char *line) {
     } else if (wtime_raw > 0 || btime_raw > 0) {
         int64_t my_time = (pos->side == WHITE) ? wtime_raw : btime_raw;
         int64_t my_inc = (pos->side == WHITE) ? winc_raw : binc_raw;
-        time_limit_ms = my_time / 20 + my_inc / 2;
-        if (time_limit_ms < 1) time_limit_ms = 1;
+        time_limit_ms = max_i64(my_time / TIME_DIVISOR_BASE + my_inc / TIME_DIVISOR_INC, 1);
     }
 
     SearchResult res = iterative_deepening(pos, max_depth, time_limit_ms, stdout);
@@ -170,10 +171,8 @@ static void handle_setoption(char *line) {
     if (strncmp(name_token, "Hash", 4) == 0 || strncmp(name_token, "hash", 4) == 0) {
         val_token += 5;
         while (*val_token == ' ') val_token++;
-        int mb = atoi(val_token);
-        if (mb >= 1 && mb <= 2048) {
-            tt_resize(&g_tt, (size_t)mb);
-        }
+        int mb = clamp_int(atoi(val_token), MIN_HASH_MB, MAX_HASH_MB);
+        tt_resize(&g_tt, (size_t)mb);
     }
 }
 
@@ -193,7 +192,7 @@ void uci_run(void) {
         if (strcmp(line, "uci") == 0) {
             printf("id name %s\n", ENGINE_NAME);
             printf("id author %s\n", ENGINE_AUTHOR);
-            printf("option name Hash type spin default 16 min 1 max 2048\n");
+            printf("option name Hash type spin default %d min %d max %d\n", DEFAULT_HASH_MB, MIN_HASH_MB, MAX_HASH_MB);
             printf("option name Threads type spin default 1 min 1 max 1\n");
             printf("uciok\n");
             fflush(stdout);

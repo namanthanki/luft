@@ -1,12 +1,14 @@
-#ifndef HISTORY_H
-#define HISTORY_H
+#pragma once
 
 #include "types.h"
+#include "util.h"
 #include <string.h>
 #include <stdlib.h>
 
-#define MAX_HISTORY 16384
-#define MAX_BONUS   2000
+enum {
+    MAX_HISTORY = 16384,
+    MAX_BONUS   = 2000
+};
 
 typedef struct {
     int table[2][64][64];
@@ -21,16 +23,12 @@ static inline int history_get(const HistoryTable *ht, Color side, Square from, S
 }
 
 static inline void history_update(HistoryTable *ht, Color side, Square from, Square to, int bonus) {
-    if (bonus > MAX_BONUS) bonus = MAX_BONUS;
-    if (bonus < -MAX_BONUS) bonus = -MAX_BONUS;
+    int clamped = clamp_int(bonus, -MAX_BONUS, MAX_BONUS);
     int current = ht->table[side][from][to];
-    int abs_bonus = bonus < 0 ? -bonus : bonus;
-    ht->table[side][from][to] = current + bonus - (current * abs_bonus) / MAX_HISTORY;
+    int abs_bonus = abs(clamped);
+    ht->table[side][from][to] = current + clamped - (current * abs_bonus) / MAX_HISTORY;
 }
 
 static inline int history_bonus(int depth) {
-    int b = depth * depth;
-    return b > MAX_BONUS ? MAX_BONUS : b;
+    return min_int(depth * depth, MAX_BONUS);
 }
-
-#endif // HISTORY_H

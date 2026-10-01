@@ -1,5 +1,4 @@
-#ifndef DATA_H
-#define DATA_H
+#pragma once
 
 #include <stdint.h>
 
@@ -49,5 +48,3 @@ static const int MVV_LVA[6][6] = {
     { 55, 54, 53, 52, 51, 50 }, // Queen victim
     {  0,  0,  0,  0,  0,  0 }, // King victim
 };
-
-#endif // DATA_H

@@ -9,19 +9,19 @@ enum {
 
 static const int PIECE_VALUES_MG[6] = {
     100,  // PAWN
-    222,  // KNIGHT
-    200,  // BISHOP
-    267,  // ROOK
-    700,  // QUEEN
+    396,  // KNIGHT
+    439,  // BISHOP
+    620,  // ROOK
+    1253, // QUEEN
     0     // KING
 };
 
 static const int PIECE_VALUES_EG[6] = {
-    141,  // PAWN
-    188,  // KNIGHT
-    296,  // BISHOP
-    403,  // ROOK
-    807,  // QUEEN
+    235,  // PAWN
+    206,  // KNIGHT
+    255,  // BISHOP
+    460,  // ROOK
+    700,  // QUEEN
     0     // KING
 };
 

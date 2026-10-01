@@ -94,7 +94,7 @@ static int qsearch(Position *pos, int ply, int alpha, int beta, SearchInfo *info
     return best_score;
 }
 
-static int negamax(Position *pos, int depth, int ply, int alpha, int beta, SearchInfo *info) {
+static int negamax(Position *pos, int depth, int ply, int alpha, int beta, bool is_pv, SearchInfo *info) {
     info->nodes++;
     check_time(info);
     if (info->stopped) return 0;
@@ -102,10 +102,12 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
     if (pos->halfmove >= 100 || position_is_repetition(pos)) return DRAW_SCORE;
     if (ply >= MAX_SEARCH_PLY - 1 || pos->game_ply >= MAX_GAME_PLY - 1) return evaluate(pos);
 
+    Move tt_move = MOVE_NULL;
     TTEntry *entry = tt_probe(&g_tt, pos->hash);
     if (entry) {
+        tt_move = entry->best_move;
         int tt_score = score_from_tt(entry->score, ply);
-        if (entry->depth >= depth && ply > 0) {
+        if (!is_pv && entry->depth >= depth && ply > 0) {
             uint8_t flag = tt_entry_flag(entry);
             if (flag == TT_EXACT) return tt_score;
             if (flag == TT_LOWERBOUND && tt_score >= beta) return tt_score;
@@ -126,7 +128,14 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
     }
 
     int scores[MAX_MOVES];
-    score_moves(&list, scores, pos->side, ply, info);
+    for (int i = 0; i < list.count; i++) {
+        Move m = list.moves[i];
+        if (m == tt_move) {
+            scores[i] = 200000;
+        } else {
+            scores[i] = score_move(m, pos->side, ply, info);
+        }
+    }
 
     int mut_alpha = alpha;
     int best_score = -INF;
@@ -136,15 +145,15 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
         pick_next_move(&list, scores, i);
         Move m = list.moves[i];
 
+        bool child_is_pv = is_pv && (i == 0);
         make_move(pos, m);
-        int score = -negamax(pos, depth - 1, ply + 1, -beta, -mut_alpha, info);
+        int score = -negamax(pos, depth - 1, ply + 1, -beta, -mut_alpha, child_is_pv, info);
         unmake_move(pos, m);
 
         if (info->stopped) return 0;
 
         if (score > best_score) {
             best_score = score;
-            best_move = m;
         }
 
         if (score >= beta) {
@@ -167,6 +176,7 @@ static int negamax(Position *pos, int depth, int ply, int alpha, int beta, Searc
 
         if (score > mut_alpha) {
             mut_alpha = score;
+            best_move = m;
         }
     }
 
@@ -198,12 +208,21 @@ SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *ou
     int max_d = limits->max_depth > 0 ? limits->max_depth : 64;
 
     for (int depth = 1; depth <= max_d; depth++) {
+        Move root_tt_move = MOVE_NULL;
+        TTEntry *entry = tt_probe(&g_tt, pos->hash);
+        if (entry) {
+            root_tt_move = entry->best_move;
+        }
+
         int root_scores[MAX_MOVES];
         for (int i = 0; i < root_list.count; i++) {
-            if (root_list.moves[i] == result.best_move && depth > 1) {
-                root_scores[i] = 100000;
+            Move m = root_list.moves[i];
+            if (m == result.best_move && depth > 1) {
+                root_scores[i] = 300000;
+            } else if (m == root_tt_move) {
+                root_scores[i] = 200000;
             } else {
-                root_scores[i] = score_move(root_list.moves[i], pos->side, 0, &info);
+                root_scores[i] = score_move(m, pos->side, 0, &info);
             }
         }
         int best_score = -INF;
@@ -216,7 +235,8 @@ SearchResult search_position(Position *pos, const SearchLimits *limits, FILE *ou
             Move m = root_list.moves[i];
 
             make_move(pos, m);
-            int score = -negamax(pos, depth - 1, 1, -beta, -alpha, &info);
+            bool is_pv = (i == 0);
+            int score = -negamax(pos, depth - 1, 1, -beta, -alpha, is_pv, &info);
             unmake_move(pos, m);
 
             if (info.stopped) break;
